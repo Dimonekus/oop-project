@@ -6,7 +6,8 @@ from .widgets import MyLabel, MyLineEdit, MyPushButton
 
 
 class LoginWindow(QWidget):
-    login_successful = Signal(object)
+    login_successful = Signal(object)     # User
+    register_requested = Signal()
 
     def __init__(self, repository: WorkTimeRepository):
         super().__init__()
@@ -15,7 +16,7 @@ class LoginWindow(QWidget):
 
     def _build_ui(self):
         self.setWindowTitle("Вход в систему")
-        self.setFixedSize(360, 260)
+        self.setFixedSize(360, 280)
 
         layout = QVBoxLayout(self)
 
@@ -26,17 +27,18 @@ class LoginWindow(QWidget):
 
         layout.addWidget(MyLabel("Логин:"))
         self.login_edit = MyLineEdit()
-        self.login_edit.setPlaceholderText("admin или ivan, anna, ...")
         layout.addWidget(self.login_edit)
 
         layout.addWidget(MyLabel("Пароль:"))
         self.password_edit = MyLineEdit()
         self.password_edit.setEchoMode(QLineEdit.Password)
-        self.password_edit.setPlaceholderText("пароль = логин")
         layout.addWidget(self.password_edit)
 
         self.btn_login = MyPushButton("Войти")
         layout.addWidget(self.btn_login)
+
+        self.btn_register = MyPushButton("Зарегистрироваться")
+        layout.addWidget(self.btn_register)
 
         self.error_label = MyLabel("")
         self.error_label.setAlignment(Qt.AlignCenter)
@@ -44,6 +46,7 @@ class LoginWindow(QWidget):
         layout.addWidget(self.error_label)
 
         self.btn_login.clicked.connect(self._on_login)
+        self.btn_register.clicked.connect(lambda: self.register_requested.emit())
         self.password_edit.returnPressed.connect(self._on_login)
         self.login_edit.returnPressed.connect(self._on_login)
 

@@ -8,10 +8,13 @@ class User(BaseEntity):
     ROLE_MANAGER = "manager"
     ROLE_EMPLOYEE = "employee"
 
-    def __init__(self, login: str, password: str, role: str = ROLE_EMPLOYEE):
+    def __init__(self, login: str, password: str,
+                 role: str = ROLE_EMPLOYEE,
+                 team_key: str | None = None):
         self._login = login
         self._password = password
         self._role = role
+        self._team_key = team_key
 
     @property
     def login(self) -> str:
@@ -44,6 +47,14 @@ class User(BaseEntity):
         self._role = value
 
     @property
+    def team_key(self) -> str | None:
+        return self._team_key
+
+    @team_key.setter
+    def team_key(self, value: str | None) -> None:
+        self._team_key = value
+
+    @property
     def is_manager(self) -> bool:
         return self._role == self.ROLE_MANAGER
 
@@ -52,7 +63,8 @@ class User(BaseEntity):
 
     def display_info(self) -> str:
         role = "руководитель" if self.is_manager else "сотрудник"
-        return f"{self._login} ({role})"
+        team = self._team_key if self._team_key else "—"
+        return f"{self._login} ({role}, команда {team})"
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, User):
@@ -65,7 +77,7 @@ class User(BaseEntity):
         return self._login < other._login
 
     def __repr__(self) -> str:
-        return f"User({self._login!r}, role={self._role!r})"
+        return f"User({self._login!r}, role={self._role!r}, team={self._team_key!r})"
 
     def __str__(self) -> str:
         return self._login
