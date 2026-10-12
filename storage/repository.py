@@ -13,6 +13,12 @@ class WorkTimeRepository(BaseEntity):
         self._teams: CustomMap = CustomMap()      # key   -> Team
         self._sessions: list[WorkSession] = []
 
+    DEFAULT_TEAM_KEY = "TEACH01"
+    DEFAULT_TEAM_NAME = "Учебная команда"
+    DEFAULT_TEAM_PASSWORD = "1234"
+    DEFAULT_MANAGER_LOGIN = "manager"
+    DEFAULT_MANAGER_PASSWORD = "manager"
+
     @property
     def users(self) -> CustomMap:
         return self._users
@@ -92,6 +98,28 @@ class WorkTimeRepository(BaseEntity):
         user = User(login, password, User.ROLE_EMPLOYEE, team_key)
         self._users.set(login, user)
         return user
+
+    def seed_default_team(self) -> bool:
+        if self._teams.get(self.DEFAULT_TEAM_KEY) is not None:
+            return False
+        if self._users.get(self.DEFAULT_MANAGER_LOGIN) is not None:
+            return False
+
+        team = Team(
+            self.DEFAULT_TEAM_KEY,
+            self.DEFAULT_TEAM_NAME,
+            self.DEFAULT_TEAM_PASSWORD,
+            self.DEFAULT_MANAGER_LOGIN,
+        )
+        user = User(
+            self.DEFAULT_MANAGER_LOGIN,
+            self.DEFAULT_MANAGER_PASSWORD,
+            User.ROLE_MANAGER,
+            self.DEFAULT_TEAM_KEY,
+        )
+        self._teams.set(team.key, team)
+        self._users.set(user.login, user)
+        return True
 
     def authenticate(self, login: str, password: str) -> User | None:
         user = self._users.get(login)

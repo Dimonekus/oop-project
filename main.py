@@ -12,11 +12,15 @@ class Application:
     def __init__(self, repository: WorkTimeRepository):
         self._repository = repository
         self._persistence = PersistenceService("data.txt")
-        self._persistence.load(repository)
 
         self._login_window: LoginWindow | None = None
         self._register_window: RegisterWindow | None = None
         self._main_window: MainWindow | None = None
+
+        loaded = self._persistence.load(repository)
+        if not loaded:
+            if self._repository.seed_default_team():
+                self._persistence.save(self._repository)
 
     def start(self):
         self._show_login()

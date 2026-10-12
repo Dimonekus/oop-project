@@ -1,6 +1,6 @@
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
-    QMainWindow, QVBoxLayout, QHBoxLayout, QTableWidgetItem,
+    QMainWindow, QVBoxLayout, QHBoxLayout, QTableWidgetItem, QApplication,
 )
 
 from entities.user import User
@@ -49,13 +49,23 @@ class MainWindow(QMainWindow):
         main_layout.addLayout(top)
 
         if is_manager and self._team:
-            key_label = MyLabel(
-                f"Ключ вашей команды: {self._team.key}  "
-                f"(передайте его сотрудникам вместе с паролем команды)"
+            key_layout = QHBoxLayout()
+
+            self.key_label = MyLabel(f"Ключ команды: {self._team.key}")
+            self.key_label.setStyleSheet(
+                "padding: 6px; color: #2a6df4; font-weight: bold;"
             )
-            key_label.setStyleSheet("padding: 4px; color: #2a6df4;")
-            key_label.setAlignment(Qt.AlignCenter)
-            main_layout.addWidget(key_label)
+            key_layout.addWidget(self.key_label)
+            key_layout.addStretch()
+
+            self.btn_copy_key = MyPushButton("Скопировать ключ")
+            self.btn_copy_key.clicked.connect(self._copy_key)
+            key_layout.addWidget(self.btn_copy_key)
+
+            main_layout.addLayout(key_layout)
+        else:
+            self.key_label = None
+            self.btn_copy_key = None
 
         if not is_manager:
             controls = QHBoxLayout()
@@ -148,6 +158,12 @@ class MainWindow(QMainWindow):
         idx = self.combo_user.findText(item.text())
         if idx >= 0:
             self.combo_user.setCurrentIndex(idx)
+
+    def _copy_key(self):
+        if self._team is None:
+            return
+        QApplication.clipboard().setText(self._team.key)
+        self._log(f"Ключ команды скопирован: {self._team.key}")
 
     def _team_key(self) -> str:
         return self._current_user.team_key or ""
