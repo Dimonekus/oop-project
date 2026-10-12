@@ -1,9 +1,10 @@
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QMainWindow, QVBoxLayout, QHBoxLayout, QWidget,
-    QTableWidgetItem, QApplication,
+    QMainWindow, QVBoxLayout, QHBoxLayout,
+    QTableWidgetItem,
 )
 
+from entities.user import User
 from entities.work_session import WorkSession
 from storage.repository import WorkTimeRepository
 from services.report_service import ReportService
@@ -15,70 +16,79 @@ from .widgets import (
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, repository: WorkTimeRepository):
+    def __init__(self, repository: WorkTimeRepository, current_user: User):
         super().__init__()
         self._repository = repository
-        self._seed_users()
+        self._current_user = current_user
         self._build_ui()
         self._refresh_users_list()
         self._refresh_table()
 
-    def _seed_users(self):
-        """Создать 10 пользователей при старте."""
-        names = ["ivan", "anna", "petr", "olga", "sergey",
-                 "maria", "dmitry", "elena", "nikolay", "sofia"]
-        for name in names:
-            self._repository.find_or_create_user(name)
-
     def _build_ui(self):
-        self.setWindowTitle("Учёт рабочего времени")
+        role = "руководитель" if self._current_user.is_manager else "сотрудник"
+        self.setWindowTitle(f"Учёт рабочего времени — {self._current_user.login} ({role})")
         self.resize(900, 600)
 
         central = MyWidget()
         self.setCentralWidget(central)
-
         main_layout = QVBoxLayout(central)
 
-        title = MyLabel("Учёт рабочего времени")
+        title = MyLabel(f"Вы вошли как: {self._current_user.login} ({role})")
         title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("font-size: 18px; font-weight: bold; padding: 8px;")
+        title.setStyleSheet("font-size: 16px; font-weight: bold; padding: 8px;")
         main_layout.addWidget(title)
 
         controls = QHBoxLayout()
-        self.login_edit = MyLineEdit()
-        self.login_edit.setPlaceholderText("Введите логин")
-        self.login_edit.setAlignment(Qt.AlignCenter)
+
+        if self._current_user.is_manager:
+            controls.addWidget(MyLabel("Логин:"))
+            self.login_edit = MyLineEdit()
+            self.login_edit.setPlaceholderText("любой сотрудник")
+            self.login_edit.setAlignment(Qt.AlignCenter)
+            controls.addWidget(self.login_edit)
+        else:
+            controls.addWidget(MyLabel("Сотрудник:"))
+            self.login_edit = MyLineEdit()
+            self.login_edit.setText(self._current_user.login)
+            self.login_edit.setReadOnly(True)
+            self.login_edit.setAlignment(Qt.AlignCenter)
+            controls.addWidget(self.login_edit)
 
         self.btn_in = MyPushButton("Вход")
         self.btn_out = MyPushButton("Выход")
-
-        controls.addWidget(MyLabel("Логин:"))
-        controls.addWidget(self.login_edit)
         controls.addWidget(self.btn_in)
         controls.addWidget(self.btn_out)
         main_layout.addLayout(controls)
 
-        filters = QHBoxLayout()
-        self.check_active = MyCheckBox("Только открытые сессии")
-        self.combo_user = MyComboBox()
-        self.combo_user.addItem("Все пользователи")
+        if self._current_user.is_manager:
+            filters = QHBoxLayout()
+            self.check_active = MyCheckBox("Только открытые сессии")
+            self.combo_user = MyComboBox()
+            self.combo_user.addItem("Все пользователи")
 
-        filters.addWidget(self.check_active)
-        filters.addWidget(MyLabel("Фильтр:"))
-        filters.addWidget(self.combo_user)
-        filters.addStretch()
-        main_layout.addLayout(filters)
+            filters.addWidget(self.check_active)
+            filters.addWidget(MyLabel("Фильтр:"))
+            filters.addWidget(self.combo_user)
+            filters.addStretch()
+            main_layout.addLayout(filters)
+        else:
+            self.check_active = None
+            self.combo_user = None
 
         content = QHBoxLayout()
-        self.users_list = MyListWidget()
-        self.users_list.setFixedWidth(180)
+
+        if self._current_user.is_manager:
+            self.users_list = MyListWidget()
+            self.users_list.setFixedWidth(180)
+            self.users_list.itemClicked.connect(self.on_user_picked)
+            content.addWidget(self.users_list)
+        else:
+            self.users_list = None
 
         self.table = MyTableWidget(0, 4)
         self.table.setHorizontalHeaderLabels(
             ["login", "time_in", "time_out", "статус"]
         )
-
-        content.addWidget(self.users_list)
         content.addWidget(self.table)
         main_layout.addLayout(content)
 
@@ -93,9 +103,10 @@ class MainWindow(QMainWindow):
 
         self.btn_in.clicked.connect(self.on_login)
         self.btn_out.clicked.connect(self.on_logout)
-        self.users_list.itemClicked.connect(self.on_user_picked)
-        self.check_active.stateChanged.connect(self._refresh_table)
-        self.combo_user.currentIndexChanged.connect(self._refresh_table)
+        if self.check_active is not None:
+            self.check_active.stateChanged.connect(self._refresh_table)
+        if self.combo_user is not None:
+            self.combo_user.currentIndexChanged.connect(self._refresh_table)
 
         self._log("Приложение запущено")
 
@@ -104,48 +115,53 @@ class MainWindow(QMainWindow):
         self.status.showMessage(text, 3000)
 
     def on_login(self):
-        login = self.login_edit.text().strip()
-        if not login:
-            self._log("Ошибка: пустой логин")
+        user = self._resolve_target_user()
+        if user is None:
             return
-
-        user = self._repository.find_or_create_user(login)
         if self._repository.find_open_session(user) is not None:
-            self._log(f"{login} уже на смене")
+            self._log(f"{user.login} уже на смене")
             return
 
         session = WorkSession(user)
         self._repository.add_session(session)
-        self._log(f"{login} вошёл в {session.time_in.strftime('%H:%M:%S')}")
+        self._log(f"{user.login} вошёл в {session.time_in.strftime('%H:%M:%S')}")
 
-        self.login_edit.clear()
-        self._refresh_users_list()
         self._refresh_table()
 
     def on_logout(self):
-        login = self.login_edit.text().strip()
-        if not login:
-            self._log("Ошибка: пустой логин")
+        user = self._resolve_target_user()
+        if user is None:
             return
-
-        user = self._repository.find_or_create_user(login)
         session = self._repository.close_session(user)
         if session is None:
-            self._log(f"{login} не на смене")
+            self._log(f"{user.login} не на смене")
             return
 
-        self._log(f"{login} вышел в {session.time_out.strftime('%H:%M:%S')}")
-        self.login_edit.clear()
+        self._log(f"{user.login} вышел в {session.time_out.strftime('%H:%M:%S')}")
         self._refresh_table()
+
+    def _resolve_target_user(self) -> User | None:
+        if self._current_user.is_manager:
+            login = self.login_edit.text().strip()
+            if not login:
+                self._log("Ошибка: пустой логин")
+                return None
+            user = self._repository.get_user(login)
+            if user is None:
+                self._log(f"Пользователь {login} не найден")
+                return None
+            return user
+        return self._current_user
 
     def on_user_picked(self, item):
         self.login_edit.setText(item.text())
 
     def _refresh_users_list(self):
+        if self.users_list is None:
+            return
         self.users_list.clear()
         self.combo_user.blockSignals(True)
         current = self.combo_user.currentText()
-
         self.combo_user.clear()
         self.combo_user.addItem("Все пользователи")
 
@@ -158,15 +174,17 @@ class MainWindow(QMainWindow):
         self.combo_user.blockSignals(False)
 
     def _refresh_table(self):
-        only_open = self.check_active.isChecked()
-        user_filter = self.combo_user.currentText()
+        if self._current_user.is_manager:
+            sessions = list(self._repository.all_sessions())
+        else:
+            sessions = list(self._repository.sessions_of(self._current_user))
 
-        sessions = list(self._repository.all_sessions())
-
-        if only_open:
+        if self.check_active is not None and self.check_active.isChecked():
             sessions = [s for s in sessions if s.time_out is None]
-        if user_filter and user_filter != "Все пользователи":
-            sessions = [s for s in sessions if s.user.login == user_filter]
+        if self.combo_user is not None:
+            user_filter = self.combo_user.currentText()
+            if user_filter and user_filter != "Все пользователи":
+                sessions = [s for s in sessions if s.user.login == user_filter]
 
         self.table.setRowCount(len(sessions))
         fmt = "%d.%m.%Y %H:%M:%S"
@@ -183,8 +201,6 @@ class MainWindow(QMainWindow):
                 item.setTextAlignment(Qt.AlignCenter)
                 self.table.setItem(row, col, item)
 
-
     def closeEvent(self, event):
         ReportService.save(list(self._repository.all_sessions()), "report.txt")
-        self._log("Отчёт сохранён в report.txt")
         super().closeEvent(event)
