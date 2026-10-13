@@ -17,9 +17,9 @@ class ReportService(BaseEntity):
         return dt.strftime(ReportService.TIME_FORMAT)
 
     @staticmethod
-    def build_report(sessions: list[WorkSession] | tuple) -> str:
-        headers = ("login", "time_in", "time_out")
-        widths = (12, 21, 21)
+    def build_report(sessions) -> str:
+        headers = ("login", "team", "time_in", "time_out")
+        widths = (12, 12, 21, 21)
 
         sep = "+" + "+".join("-" * (w + 2) for w in widths) + "+"
 
@@ -33,6 +33,7 @@ class ReportService(BaseEntity):
         for s in sessions:
             lines.append(row((
                 s.user.login,
+                s.user.team_key or "—",
                 ReportService._fmt(s.time_in),
                 ReportService._fmt(s.time_out),
             )))
