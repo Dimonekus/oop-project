@@ -42,27 +42,44 @@ class PersistenceService(BaseEntity):
         except FileNotFoundError:
             return False
 
-        repository.clear()
-        for line in lines:
-            line = line.rstrip("\n")
-            if not line:
-                continue
-            parts = line.split(self._sep)
-            kind = parts[0]
+        teams: list[Team] = []
+        users: list[User] = []
+        sessions: list[WorkSession] = []
 
-            if kind == "TEAM" and len(parts) == 5:
-                repository.add_team(Team(parts[1], parts[2], parts[3], parts[4]))
-            elif kind == "USER" and len(parts) == 5:
-                team_key = parts[4] if parts[4] else None
-                repository.add_user(User(parts[1], parts[2], parts[3], team_key))
-            elif kind == "SESSION" and len(parts) == 4:
-                user = repository.get_user(parts[1])
-                if user is None:
+        try:
+            for line in lines:
+                line = line.rstrip("\n")
+                if not line:
                     continue
-                session = WorkSession(user, datetime.fromisoformat(parts[2]))
-                if parts[3]:
-                    session.time_out = datetime.fromisoformat(parts[3])
-                repository.add_session(session)
+                parts = line.split(self._sep)
+                kind = parts[0]
+
+                if kind == "TEAM" and len(parts) == 5:
+                    teams.append(Team(parts[1], parts[2], parts[3], parts[4]))
+                elif kind == "USER" and len(parts) == 5:
+                    team_key = parts[4] if parts[4] else None
+                    users.append(User(parts[1], parts[2], parts[3], team_key))
+                elif kind == "SESSION" and len(parts) == 4:
+                    user = next((u for u in users if u.login == parts[1]), None)
+                    if user is None:
+                        user = repository.get_user(parts[1])
+                    if user is None:
+                        continue
+                    session = WorkSession(user, datetime.fromisoformat(parts[2]))
+                    if parts[3]:
+                        session.time_out = datetime.fromisoformat(parts[3])
+                    sessions.append(session)
+        except (ValueError, IndexError) as e:
+            print(f"Ошибка чтения {self._path}: {e}")
+            return False
+
+        repository.clear()
+        for t in teams:
+            repository.add_team(t)
+        for u in users:
+            repository.add_user(u)
+        for s in sessions:
+            repository.add_session(s)
         return True
 
     def display_info(self) -> str:
