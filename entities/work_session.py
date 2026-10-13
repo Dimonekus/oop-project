@@ -7,8 +7,6 @@ from .user import User
 
 @total_ordering
 class WorkSession(BaseEntity):
-    """Одна рабочая сессия: вход и выход пользователя."""
-
     def __init__(self, user: User, time_in: datetime | None = None):
         self._user = user
         self._time_in = time_in if time_in is not None else datetime.now()
@@ -45,7 +43,6 @@ class WorkSession(BaseEntity):
         self._time_out = value
 
     def close(self) -> None:
-        """Закрыть сессию — поставить время выхода 'сейчас'."""
         self._time_out = datetime.now()
 
     def display_info(self) -> str:
