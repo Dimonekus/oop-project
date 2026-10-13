@@ -5,13 +5,8 @@ class CustomMap(BaseEntity):
     def __init__(self):
         self._items: list[tuple] = []
 
-    @property
     def items(self) -> tuple:
         return tuple(self._items)
-
-    @items.setter
-    def items(self, value) -> None:
-        self._items = list(value)
 
     def set(self, key, value) -> None:
         for i, (k, _) in enumerate(self._items):

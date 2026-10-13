@@ -129,7 +129,7 @@ class WorkTimeRepository(BaseEntity):
 
     def users_of_team(self, team_key: str) -> tuple:
         return tuple(
-            (login, user) for login, user in self._users.items
+            (login, user) for login, user in self._users.items()
             if user.team_key == team_key
         )
 
@@ -143,7 +143,7 @@ class WorkTimeRepository(BaseEntity):
 
     def find_open_session(self, user: User) -> WorkSession | None:
         for s in self._sessions:
-            if s.user == user and s.time_out is None:
+            if s.user.login == user.login and s.time_out is None:
                 return s
         return None
 
@@ -157,10 +157,10 @@ class WorkTimeRepository(BaseEntity):
         return tuple(self._sessions)
 
     def all_users(self) -> tuple:
-        return tuple(self._users.items)
+        return tuple(self._users.items())
 
     def all_teams(self) -> tuple:
-        return tuple(self._teams.items)
+        return tuple(self._teams.items())
 
     def display_info(self) -> str:
         return (f"WorkTimeRepository: {self._users.size()} польз., "
