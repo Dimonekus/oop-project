@@ -8,7 +8,8 @@ from .widgets import MyLabel, MyLineEdit, MyPushButton
 
 
 class RegisterWindow(QWidget):
-    registered = Signal(object)   # User
+    registered = Signal(object)
+    back_requested = Signal()# User
 
     def __init__(self, repository: WorkTimeRepository):
         super().__init__()
@@ -64,11 +65,15 @@ class RegisterWindow(QWidget):
         self.btn_register = MyPushButton("Зарегистрироваться")
         layout.addWidget(self.btn_register)
 
+        self.btn_back = MyPushButton("Назад")
+        layout.addWidget(self.btn_back)
+
         self.info_label = MyLabel("")
         self.info_label.setAlignment(Qt.AlignCenter)
         self.info_label.setWordWrap(True)
         layout.addWidget(self.info_label)
 
+        self.btn_back.clicked.connect(lambda: self.back_requested.emit())
         self.radio_manager.toggled.connect(self._update_fields)
         self.btn_register.clicked.connect(self._on_register)
         self._update_fields()

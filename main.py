@@ -37,9 +37,23 @@ class Application:
         self._login_window.show()
 
     def _show_register(self):
+        if self._login_window is not None:
+            self._login_window.hide()
         self._register_window = RegisterWindow(self._repository)
         self._register_window.registered.connect(self._on_login_success)
+        self._register_window.back_requested.connect(self._on_register_back)
         self._register_window.show()
+
+    def _on_register_back(self):
+        if self._register_window is not None:
+            self._register_window.close()
+            self._register_window = None
+        if self._login_window is not None:
+            self._login_window.show()
+
+    def closeEvent(self, event):
+        self.back_requested.emit()
+        super().closeEvent(event)
 
     def _on_login_success(self, user):
         self._main_window = MainWindow(self._repository, user)
