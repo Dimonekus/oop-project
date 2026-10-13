@@ -6,7 +6,6 @@ from PySide6.QtWidgets import (
 from entities.user import User
 from entities.work_session import WorkSession
 from storage.repository import WorkTimeRepository
-from services.report_service import ReportService
 
 from .widgets import (
     MyLabel, MyLineEdit, MyPushButton, MyTableWidget, MyListWidget,
@@ -212,7 +211,3 @@ class MainWindow(QMainWindow):
                 item = QTableWidgetItem(value)
                 item.setTextAlignment(Qt.AlignCenter)
                 self.table.setItem(row, col, item)
-
-    def closeEvent(self, event):
-        ReportService.save(list(self._repository.all_sessions()), "report.txt")
-        super().closeEvent(event)

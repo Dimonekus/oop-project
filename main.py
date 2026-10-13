@@ -1,6 +1,7 @@
 import sys
 from PySide6.QtWidgets import QApplication
 
+from services.report_service import ReportService
 from storage.repository import WorkTimeRepository
 from storage.persistence import PersistenceService
 from ui.login_window import LoginWindow
@@ -27,6 +28,7 @@ class Application:
 
     def save(self):
         self._persistence.save(self._repository)
+        ReportService.save(list(self._repository.all_sessions()), "report.txt")
 
     def _show_login(self):
         self._login_window = LoginWindow(self._repository)
